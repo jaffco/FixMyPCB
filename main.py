@@ -451,14 +451,36 @@ def _patch_gui_document(input_fcstd: Path, output_fcstd: Path, new_object_names:
         gui_xml = gui_xml.replace("</ViewProviderData>", insert_block + "</ViewProviderData>", 1)
         print(f"  Injected {len(injections)} new ViewProvider entries into GuiDocument.xml")
 
-    # Rewrite the output zip with the patched GuiDocument.xml appended
+    # Rewrite the output zip: keep all existing entries, add GuiDocument.xml,
+    # and copy over any colour/appearance data files from the source that
+    # headless FreeCAD dropped (ShapeAppearance*, LineColorArray*, etc.)
     tmp_path = output_fcstd.with_suffix(".tmp.FCStd")
-    with zipfile.ZipFile(output_fcstd, "r") as zin, \
+    with zipfile.ZipFile(input_fcstd, "r") as zsrc, \
+         zipfile.ZipFile(output_fcstd, "r") as zin, \
          zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+
+        existing = {item.filename for item in zin.infolist()}
+
+        # Copy everything already in the output (Document.xml + .brp shapes)
         for item in zin.infolist():
             zout.writestr(item, zin.read(item.filename))
+
+        # Inject patched GuiDocument.xml
         zout.writestr("GuiDocument.xml", gui_xml.encode("utf-8"))
 
+        # Copy appearance/colour data files from source that are missing from output.
+        # Skip .brp files — shapes belong to the new Document.xml.
+        _SKIP = {"Document.xml", "GuiDocument.xml"}
+        extras = []
+        for item in zsrc.infolist():
+            if item.filename in existing or item.filename in _SKIP:
+                continue
+            if item.filename.endswith(".brp"):
+                continue
+            zout.writestr(item, zsrc.read(item.filename))
+            extras.append(item.filename)
+
+    print(f"  Copied {len(extras)} appearance/colour file(s) from source")
     tmp_path.replace(output_fcstd)
 
 
