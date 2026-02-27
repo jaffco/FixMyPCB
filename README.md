@@ -1,6 +1,15 @@
-# FixMyPCB
+# EasyFSF: EasyEDA->FreeCAD STEP file Fixer!
 
-Generates a Markdown model-tree report from a FreeCAD document (`.FCStd`).
+When importing EasyEDA-exported `.step` files into FreeCAD, the model tree is not organized very well. This project will fix the model tree of your `.FCStd` so that each populated PCB is a single, movable `App::Part`. 
+
+Handles panelized designs by automatically detecting and splitting sub-boards from connecting rails/tabs based on component placement.
+
+## Workflow
+1. Import `.step` from EasyEDA to FreeCAD
+2. Save `<nameItWhateverLOL>.FCStd`
+3. In a Bash shell, do `./init.sh`, `source venv/bin/activate`
+4. In a Bash shell, do `./run.sh <path/to/your/FCStd>`
+5. New `.FCStd` will be good.
 
 ## Requirements
 
@@ -32,10 +41,10 @@ FREECAD_PYTHON=/path/to/FreeCAD.app/Contents/Resources/bin/python ./init.sh
 ./run.sh <path/to/file.FCStd>
 ```
 
-Outputs `report.md` in the project root. To specify a different output file:
+Outputs `<input>_regrouped.FCStd` alongside the source file. The original is never modified. To specify a custom output path:
 
 ```bash
-./run.sh model/Example.FCStd -o my_report.md
+./run.sh model/Example.FCStd -o model/Example_fixed.FCStd
 ```
 
 You can also invoke `main.py` directly after activating the venv:
@@ -45,8 +54,23 @@ source venv/bin/activate
 python main.py model/Example.FCStd
 ```
 
-## Report Contents
+## What it does
 
-- Document metadata (name, path, FreeCAD version, timestamp)
-- Object type summary (counts per `TypeId`)
-- Full indented model tree (auxiliary geometry — axes, planes, origins — hidden for clarity)
+EasyEDA exports FreeCAD assemblies as a single flat `App::Part` where every component and the board are siblings at the same level. This makes it impossible to move a populated PCB as one unit.
+
+`main.py` restructures the tree into:
+
+```
+EasyEDA PCB Model  (App::Part)
+└── Board (Populated)  (App::Part)   ← move this to move everything
+    ├── Sub-Board 0  (App::Part)     ← panelized sub-board A + its components
+    │   ├── Board geometry
+    │   └── [component wrappers…]
+    ├── Sub-Board 1  (App::Part)     ← panelized sub-board B + its components
+    │   └── …
+    └── Panel Rails / Tabs  (App::Part)  ← connective geometry with no components
+```
+
+**Panel detection:** each `Part::Feature` inside the board container is tested for component coverage using XY bounding-box containment. Features with components become individual sub-board `App::Part`s; features with no components are grouped into `Panel Rails / Tabs`. Single-board (non-panelized) files are handled correctly — no split is performed.
+
+**Visibility:** the tool preserves all existing Gui-layer visibility by copying `GuiDocument.xml` from the source into the output archive and injecting `ViewProvider` entries for newly created container objects.
