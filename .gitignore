@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Generated output
+report.md
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
