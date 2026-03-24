@@ -1,4 +1,4 @@
-# EasyFSF: EasyEDA->FreeCAD STEP file Fixer!
+# FixMyPCB: EasyEDA->FreeCAD STEP file Fixer!
 
 When importing EasyEDA-exported `.step` files into FreeCAD, the model tree is not organized very well. This project will fix the model tree of your `.FCStd` so that each populated PCB is a single, movable `App::Part`. 
 
